@@ -538,22 +538,6 @@ class RegresionLogisticaMiniBatch():
         # Aplicamos normalización estándar a los datos
         return (X.copy() - self.media) / self.std
 
-
-# Tomamos un modelo linealmente separable
-from sklearn.datasets import make_classification
-
-# linealmente separable
-X, y = make_classification(n_samples=100, n_features=2, n_redundant=0, n_informative=2,
-                            random_state=1, n_clusters_per_class=1)
-
-from matplotlib import pyplot as plt
-
-# Creamos el modelo
-lr = RegresionLogisticaMiniBatch(rate=1.0,rate_decay=True,normalizacion=True,batch_tam=10)
-
-# Entrenamos el modelo
-lr.entrena(X,y,1000)
-
 def rendimiento(clasificador, X, y):
     # Calculamos el número de aciertos
     aciertos = 0
@@ -564,11 +548,16 @@ def rendimiento(clasificador, X, y):
     # Devolvemos el porcentaje de aciertos
     return aciertos / len(X)
 
-# Calculamos el rendimiento
-print(rendimiento(lr, X, y))
+# Descomentamos lo siguiente para ver que funciona correctamente con el conjunto de datos del 
+# cáncer de mama
 
-# ver pesos
-print(lr.w)
+# from sklearn.datasets import load_breast_cancer
+# cancer=load_breast_cancer()
+# X_cancer,y_cancer=cancer.data,cancer.target
+# lr_cancer=RegresionLogisticaMiniBatch(rate=0.1,rate_decay=True,normalizacion=True)
+# lr_cancer.entrena(X_cancer,y_cancer,10000)
+# print(rendimiento(lr_cancer,X_cancer,y_cancer))
+# RESULTADO: 0.9876977152899824
 
 # -----------------------------------
 # II.2) Aplicando Regresión Logística 
