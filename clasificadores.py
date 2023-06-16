@@ -208,8 +208,8 @@ import jugar_tenis
   
 
 # importing dummy datasets
-import credito
-import votos
+# import credito
+# import votos
 
 
 
@@ -358,11 +358,217 @@ import votos
 
 # -----------------------------------------------------------------
 
+# Definimos la función sigmoide tal y como se nos indica
+from scipy.special import expit    
+def sigmoide(x):
+   return expit(x)
+
+class RegresionLogisticaMiniBatch():
+
+    def __init__(self,clases=[0,1],normalizacion=False,
+                 rate=0.1,rate_decay=False,batch_tam=64):
+        
+        # Datos del conjunto de entrenamiento
+        self.clases = clases
+        self.n_dim = None
+
+        # Normalización estándar
+        self.normalizacion = normalizacion
+        self.media = None
+        self.std = None
+
+        # Tasa de aprendizaje
+        self.rate = rate
+        self.rate_decay = rate_decay
+
+        # Tamaño de los mini batches
+        self.batch_tam = batch_tam
+
+        # Variables internas
+        self.modelo_entrenado = False
+        self.w = None
+
+    def entrena(self,X,y,n_epochs,reiniciar_pesos=False,pesos_iniciales=None):
+
+        # Obtenemos la dimensión del modelo
+        self.n_dim = X.shape[1] # Número de atributos (x1, x2, ..., xn)
+
+        ########
+        # Normalizamos los datos
+        if self.normalizacion:
+            self.__ajusta_normalizador(X)
+            X_norm = self.__normaliza(X)
+        else:
+            X_norm = X
+        
+        # Ampliamos los datos con x0 = 1
+        X_ampliada = np.hstack((np.ones((len(X_norm),1)),X_norm))
+
+        # Ajustamos y a valores numéricos de 0.0 y 1.0
+        y = np.array([0.0 if clase == self.clases[0] else 1.0 for clase in y])
+        
+        ########
+        # Inicializamos los pesos: np.array(w0, w1, ..., wn)
+
+        if reiniciar_pesos: 
+            # Si reiniciar_pesos es True, asignamos pesos aleatorios
+            self.w = np.random.uniform(-1,1,self.n_dim+1)
+
+        elif pesos_iniciales is not None:
+             # Si no, asignamos los pesos iniciales si estos se han proporcionado
+             self.w = pesos_iniciales
+
+        else:
+            # Si no, asignamos pesos aleatorios o nos quedamos con los que ya teníamos
+            if self.w is None:
+                self.w = np.random.uniform(-1,1,self.n_dim+1)
+
+        ########
+        # Entrenamos el modelo
+        for epoch in range(n_epochs):
+
+            # La tasa de aprendizaje dependerá de cada epoch si rate_decay es True 
+            if self.rate_decay:
+                learning_rate = self.rate / (1 + epoch)
+            else:
+                learning_rate = self.rate
+            
+            # Mezclamos los datos para generar aleatoriedad en los mini batches
+            indices = np.random.permutation(len(X_ampliada))
+            X_ampliada_mezclada= X_ampliada[indices]
+            y_mezclada = y[indices]
+
+            for i in range(0, len(X_ampliada_mezclada), self.batch_tam):
+                # Obtenemos el conjunto de datos del mini batch
+                # asegurando que no nos salimos del rango
+                fin = min(i + self.batch_tam, len(X_ampliada_mezclada))
+                X_batch = X_ampliada_mezclada[i:fin]
+                y_batch = y_mezclada[i:fin]
+
+                # Calculamos la predicción
+                y_pred = sigmoide(np.dot(X_batch, self.w))
+                error = y_pred - y_batch
+
+                # Actualizamos los pesos
+                self.w = self.w - learning_rate * np.dot(X_batch.T, error)
+
+                # Esta expresión matricial realiza de forma compacta el cálculo que se corresponde 
+                # con la actualización de los pesos por descenso por el gradiente:
+                #
+                # wi = wi - learning_rate * sum(error(ejk)*xi(ejk) for ejk in error)
+                #
+                # donde, las matrices que es multiplican son:
+                #   
+                # X_batch.T = [[x0(ej0), x0(ej1), ..., x0(ejk)],
+                #              [x1(ej0), x1(ej1), ..., x1(ejk)], 
+                #              ...,
+                #              [xn(ej0), xn(ej1), ..., xn(ejk)]]
+                #
+                # error      = [error(ej0),
+                #               error(ej1),
+                #               ...,
+                #               error(ejn)]
+                #     
+                # np.dot(X_batch.T, error) = [error(ej0)*x0(ej0) + error(ej1)*x0(ej1) + ... + error(ejn)*x0(ejn),
+                #                             error(ej0)*x1(ej0) + error(ej1)*x1(ej1) + ... + error(ejn)*x1(ejn),
+                #                             ...,
+                #                             error(ej0)*xn(ej0) + error(ej1)*xn(ej1) + ... + error(ejn)*xn(ejn)]
+                #
+                # Es decir, cada peso se actualiza como:
+                # wi = wi - lerning_rate * (error(ej0)*xi(ej0) + error(ej1)*xi(ej1) + ... + error(ejn)*xi(ejn))
+                #
 
 
+        # Indicamos que el modelo ha sido entrenado
+        self.modelo_entrenado = True
+
+    def clasifica_prob(self,ejemplo):
+        # Lanzamos una excepción si el modelo no ha sido entrenado
+        if not self.modelo_entrenado:
+            raise ClasificadorNoEntrenado
+        
+        # Normalizamos el ejemplo si es necesario
+        if self.normalizacion:
+            ejemplo_norm = self.__normaliza(ejemplo)
+        else:
+            ejemplo_norm = ejemplo
 
 
+        # Ampliamos el ejemplo con x0 = 1
+        ejemplo_ampliado = np.hstack((np.ones(1),ejemplo_norm))
 
+        # Calculamos la probabilidad de que el ejemplo pertenezca a cada clase
+        probabilidad = sigmoide(np.dot(ejemplo_ampliado, self.w))
+
+        # Ajustamos a un diccionario con las clases y sus probabilidades
+        # (la clase positiva es la segunda de la lista de clases)
+        # (la clase negativa es la primera de la lista de clases)
+        return {self.clases[0]: 1 - probabilidad, self.clases[1]: probabilidad} 
+
+    def clasifica(self,ejemplo:np.ndarray):
+        # Lanzamos una excepción si el modelo no ha sido entrenado
+        if not self.modelo_entrenado:
+            raise ClasificadorNoEntrenado
+        
+        # Normalizamos el ejemplo si es necesario
+        if self.normalizacion:
+            ejemplo_norm = self.__normaliza(ejemplo)
+        else:
+            ejemplo_norm = ejemplo
+
+        # Ampliamos el ejemplo con x0 = 1
+        ejemplo_ampliado = np.hstack((np.ones(1),ejemplo_norm))
+
+        # Calculamos la probabilidad de que el ejemplo pertenezca a cada clase
+        probabilidad = sigmoide(np.dot(ejemplo_ampliado, self.w))
+
+        # Devolvemos la clase con mayor probabilidad
+        if probabilidad >= 0.5:
+            return self.clases[1]
+        else:
+            return self.clases[0]
+
+    def __ajusta_normalizador(self, X):
+        # Calculamos media y desviación típica del conjunto de datos
+        # y las guardamos en los atributos de la clase
+        self.media = np.mean(X, axis=0)
+        self.std = np.std(X, axis=0)
+    
+    def __normaliza(self, X):
+        # Aplicamos normalización estándar a los datos
+        return (X.copy() - self.media) / self.std
+
+
+# Tomamos un modelo linealmente separable
+from sklearn.datasets import make_classification
+
+# linealmente separable
+X, y = make_classification(n_samples=100, n_features=2, n_redundant=0, n_informative=2,
+                            random_state=1, n_clusters_per_class=1)
+
+from matplotlib import pyplot as plt
+
+# Creamos el modelo
+lr = RegresionLogisticaMiniBatch(rate=1.0,rate_decay=True,normalizacion=True,batch_tam=10)
+
+# Entrenamos el modelo
+lr.entrena(X,y,1000)
+
+def rendimiento(clasificador, X, y):
+    # Calculamos el número de aciertos
+    aciertos = 0
+    for i in range(len(X)):
+        if clasificador.clasifica(X[i]) == y[i]:
+            aciertos += 1
+    
+    # Devolvemos el porcentaje de aciertos
+    return aciertos / len(X)
+
+# Calculamos el rendimiento
+print(rendimiento(lr, X, y))
+
+# ver pesos
+print(lr.w)
 
 # -----------------------------------
 # II.2) Aplicando Regresión Logística 
