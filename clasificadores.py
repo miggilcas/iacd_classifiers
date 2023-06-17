@@ -660,14 +660,12 @@ y_votos = votos.clasif
 Xe_votos, Xaux_votos, ye_votos, yaux_votos = train_test_split(X_votos, y_votos, test_size=0.5, random_state=41, stratify=y_votos)
 Xv_votos, Xt_votos, yv_votos, yt_votos = train_test_split(Xaux_votos, yaux_votos, test_size=0.6, random_state=41, stratify=yaux_votos)
 
+# Evaluamos el rendimiento de cada combinación de hiperparámetros
+
 # DESCOMENTAR PARA EJECUTAR #
 # print("\nVotos de congresistas US")
-# # Llamamos a la función anterior para obtener el modelo con mejor rendimiento sobre el conjunto de validación
 # lr_votos = evaluacion_hiperparametros(opciones, Xe_votos, ye_votos, Xv_votos, yv_votos)
 # print("Rendimiento en test: ", rendimiento(lr_votos, Xt_votos, yt_votos))
-# # Guardamos los pesos como resultado del modelo entrenado
-# pesos_votos = lr_votos.w
-# np.savetxt("pesos_votos.txt", pesos_votos)
 
 # RESULTADOS
 # Rendimiento en entrenamiento:  0.9953917050691244
@@ -695,9 +693,11 @@ Xe_cancer, Xaux_cancer, ye_cancer, yaux_cancer = train_test_split(X_cancer, y_ca
 Xv_cancer, Xt_cancer, yv_cancer, yt_cancer = train_test_split(Xaux_cancer, yaux_cancer, test_size=0.6, random_state=41, stratify=yaux_cancer)
 
 # Evaluamos el rendimiento de cada combinación de hiperparámetros
-print("\nCáncer de mama")
-lr_cancer = evaluacion_hiperparametros(opciones, Xe_cancer, ye_cancer, Xv_cancer, yv_cancer)
-print("Rendimiento en test: ", rendimiento(lr_cancer, Xt_cancer, yt_cancer))
+
+# DESCOMENTAR PARA EJECUTAR #
+# print("\nCáncer de mama")
+# lr_cancer = evaluacion_hiperparametros(opciones, Xe_cancer, ye_cancer, Xv_cancer, yv_cancer)
+# print("Rendimiento en test: ", rendimiento(lr_cancer, Xt_cancer, yt_cancer))
 
 # RESULTADOS
 # Rendimiento en entrenamiento:  0.9823943661971831
