@@ -624,22 +624,20 @@ opciones = [(rate, batch_tam, rate_decay, normalizacion, n_epoch)
 ### Votos de congresistas US ###
 ################################
 
-# Vamos a obtener los datos y se van a dividir en 3 subconjuntos: entrenamiento, validación y test
-# usando train_test_split de Scikit Learn con estratificación en una proporción 50-20-30 respectivamente
-
+# Imporatmos los datos y los dividimos sando train_test_split de Scikit Learn con estratificación
+# en una proporción 50-20-30 respectivamente
 import votos
 X_votos = votos.datos
 y_votos = votos.clasif
-
-# Se dividen dos veces los datos para obtener los 3 subconjuntos
 Xe_votos, Xaux_votos, ye_votos, yaux_votos = train_test_split(X_votos, y_votos, test_size=0.5, random_state=41, stratify=y_votos)
 Xv_votos, Xt_votos, yv_votos, yt_votos = train_test_split(Xaux_votos, yaux_votos, test_size=0.6, random_state=41, stratify=yaux_votos)
 
-
+# Evaluamos el rendimiento de cada combinación de hiperparámetros
 rendimiento_votos_opciones = []
 lr_votos_entrenados = []
 for opt in opciones:
-    # Entrenamos un modelo con cada combinación de hiperparámetros
+    
+    # Entrenamos un modelo para la combinación de hiperparámetros opt
     lr_votos = RegresionLogisticaMiniBatch(rate=opt[0], batch_tam=opt[1], rate_decay=opt[2], normalizacion=opt[3])
     lr_votos.entrena(Xe_votos, ye_votos, opt[4])
 
