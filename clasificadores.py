@@ -423,6 +423,11 @@ class RegresionLogisticaMiniBatch():
             if self.w is None:
                 self.w = np.random.uniform(-1,1,self.n_dim+1)
 
+        # Para que los resultados sean reproducibles vamos a fijar una semilla a partir de los cuales
+        # se generarán los números aleatorios tomados como random_state en np.random.permutation
+        seed = 42
+        random_states = np.random.RandomState(seed).randint(0, 100000, n_epochs, dtype=np.int64)
+
         ########
         # Entrenamos el modelo
         for epoch in range(n_epochs):
@@ -434,7 +439,8 @@ class RegresionLogisticaMiniBatch():
                 learning_rate = self.rate
             
             # Mezclamos los datos para generar aleatoriedad en los mini batches
-            indices = np.random.permutation(len(X_ampliada))
+            indices = np.random.RandomState(random_states[epoch]).permutation(len(X_ampliada))
+            
             X_ampliada_mezclada= X_ampliada[indices]
             y_mezclada = y[indices]
 
@@ -548,7 +554,7 @@ def rendimiento(clasificador, X, y):
     # Devolvemos el porcentaje de aciertos
     return aciertos / len(X)
 
-# Descomentamos lo siguiente para ver que funciona correctamente con el conjunto de datos del 
+# Se comprueba su correcto funcioamiento con el conjunto de datos del 
 # cáncer de mama
 
 # from sklearn.datasets import load_breast_cancer
@@ -577,6 +583,102 @@ def rendimiento(clasificador, X, y):
 # datos puede ser necesaria normalización.
 
 # Mostrar el proceso realizado en cada caso, y los rendimientos obtenidos. 
+
+# -----------------------------------------------------------------
+# Importamos esta función de sklearn para dividir los datos en tres subconjuntos, de
+# modo que usaremos un conjunto de entramiento para entrenar el modelo, uno de validación
+# para ajustar los hiperparámetros y uno de test para evaluar el rendimiento final del modelo
+from sklearn.model_selection import train_test_split
+
+# Dado que se debe ajustar el modelo de regresión logística a los conjuntos de datos,
+# y se nos pide que el modelo ha de tener el mejor rendimiento posible, vamos a
+# realizar una búsqueda de hiperparámetros para cada conjunto de datos.
+
+# Las opciones que vamos a evaluar son las siguientes:
+################################
+# Búsqueda de hiperparámetros
+
+# Se van a probar distintos valores de tasa de aprendizaje, tamaños de batch y rate_decay
+# para obtener el mejor rendimiento posible
+
+# Tasas de aprendizaje:
+rates = [1.0, 0.1, 0.01]
+# Tamaño de batch
+batch_tams = [32, 64, 128]
+# Uso de rate_decay
+rate_decays = [True, False]
+# Uso de normalización
+normalizaciones = [True, False]
+# Número de epochs
+n_epochs = [1000, 5000, 10000]
+
+# Generamos todas las combinaciones de hiperparámetros
+opciones = [(rate, batch_tam, rate_decay, normalizacion, n_epoch)
+            for rate in rates
+            for batch_tam in batch_tams
+            for rate_decay in rate_decays
+            for normalizacion in normalizaciones
+            for n_epoch in n_epochs]
+
+################################
+### Votos de congresistas US ###
+################################
+
+# Vamos a obtener los datos y se van a dividir en 3 subconjuntos: entrenamiento, validación y test
+# usando train_test_split de Scikit Learn con estratificación en una proporción 50-20-30 respectivamente
+
+import votos
+X_votos = votos.datos
+y_votos = votos.clasif
+
+# Se dividen dos veces los datos para obtener los 3 subconjuntos
+Xe_votos, Xaux_votos, ye_votos, yaux_votos = train_test_split(X_votos, y_votos, test_size=0.5, random_state=41, stratify=y_votos)
+Xv_votos, Xt_votos, yv_votos, yt_votos = train_test_split(Xaux_votos, yaux_votos, test_size=0.6, random_state=41, stratify=yaux_votos)
+
+
+rendimiento_votos_opciones = []
+lr_votos_entrenados = []
+for opt in opciones:
+    # Entrenamos un modelo con cada combinación de hiperparámetros
+    lr_votos = RegresionLogisticaMiniBatch(rate=opt[0], batch_tam=opt[1], rate_decay=opt[2], normalizacion=opt[3])
+    lr_votos.entrena(Xe_votos, ye_votos, opt[4])
+
+    # Guardamos el rendimiento en la validación y el modelo entrenado
+    rendimiento_votos_opciones.append(rendimiento(lr_votos, Xv_votos, yv_votos))
+    lr_votos_entrenados.append(lr_votos)
+
+# Obtenemos el mejor rendimiento y la mejor combinación de hiperparámetros
+mejor_rendimiento_votos_index = np.argmax(rendimiento_votos_opciones)
+mejor_opcion_votos = opciones[mejor_rendimiento_votos_index]
+mejor_lr_votos = lr_votos_entrenados[mejor_rendimiento_votos_index]
+
+# Monstramos el rendimiento obtenido y la combinación de hiperparámetros para los tres conjuntos
+print("Ajuste Hiperparámetros Logistic Regression. Conjunto de datos: Votos")
+print("Rendimiento en entrenamiento: ", rendimiento(mejor_lr_votos, Xe_votos, ye_votos))
+print("Rendimiento en validación: ", rendimiento(mejor_lr_votos, Xv_votos, yv_votos))
+print("Rendimiento en test: ", rendimiento(mejor_lr_votos, Xt_votos, yt_votos))
+print("Mejor combinación de hiperparámetros: ", mejor_opcion_votos)
+
+# RESULTADOS
+# Rendimiento en entrenamiento:  0.9769585253456221
+# Rendimiento en validación:  0.9655172413793104
+# Rendimiento en test:  0.9312977099236641
+# Mejor combinación de hiperparámetros:  (1.0, 128, True, True, 10000)
+
+# Es decir, el modelo con mejor rendimiento para este conjunto de datos,
+# es el que tiene los siguientes hiperparámetros:
+# - Tasa de aprendizaje inicial de 1.0 con rate_decay
+# - Tamaño de batch: 128
+# - Normalización: True
+# - Número de epochs: 10000
+
+
+
+
+
+
+
+
 
 
 
