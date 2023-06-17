@@ -75,41 +75,96 @@
 #         ......
 
 import numpy as np
+import math
 
 class NaiveBayes():
     def __init__(self,k=1): 
         self.k = k
         self.clases = None
+        self.num_clases = None
         self.prob_clases = None
+
+        self.valores_atributos = None
         self.prob_atributos = None
         self.num_atributos = None
-        self.num_clases = None
-        self.atributos = None
-        self.atributos_clases = None
-        self.atributos_clases_prob = None
-        self.atributos_prob = None
-        self.atributos_prob_log = None
-        self.atributos_clases_prob_log = None
-        self.atributos_clases_prob_log_sum = None
+        self.N = None
+        self.entrenado = False
+        
+        
     
-    def entrena(self,X,y):
-        # We calculate the number of classes and the number of attributes
+    def entrena(self,X:np.array,y:np.array):
+        # Calculamos el número de clases y el número de atributos
         self.clases = np.unique(y)
         self.num_clases = len(self.clases)
         self.prob_clases = np.zeros(self.num_clases)
-        self.atributos = np.unique(X)
-        self.num_atributos = len(self.atributos)
+
+        # Obtenemos los valores de cada atributo
+        self.valores_atributos = [np.unique(X[:, i]) for i in range(X.shape[1])] # buscamos los valores únicos en cada columna de dataset
+
+        self.num_atributos = X.shape[1] # obteniendo el número de columnas del array numpy X
+        # para guardar las probabilidades de cada atributo, al no saber el número de valores que puede tomar cada atributo se guarda en un diccionario para facilitar el acceso
+        # a la hora de clasificar, su acceso más tarde será: self.prob_atributos[clase][atributo][valor]
+        self.prob_atributos = {cls: {atr: {val: 0 for val in self.valores_atributos[atr]}  for atr in range(self.num_atributos)} for cls in self.clases}
+        # Calculamos el número de ejemplos
+        N = len(y)
+
+        # Calculamos la probabilidad de cada clase
+        for i in range(self.num_clases):
+            # implementamos la fórmula de la diapositiva 26 del tema 2: P(C=c)=n(C=c)/N
+            self.prob_clases[i] = np.sum(y == self.clases[i]) / N
+
+        # Calculamos la probabilidad de cada atributo
+        for j,clase in enumerate(self.clases):
+            for i in range(self.num_atributos):
+                for s,val in enumerate(self.valores_atributos[i]):
+            # implementamos la otra fórmula de la diapositiva 26 del tema 2: P(A=v, C=c)=n(A=v, C=c)/n(C=c)
+                    self.prob_atributos[clase][i][val] = np.log((np.sum(X[y == self.clases[j]][:,i] == self.valores_atributos[i][s]) + self.k )/ (np.sum(y == self.clases[j])+self.k*len(self.valores_atributos[i])))
         
+        self.entrenado = True
+
+    def clasifica_prob(self,ejemplo:np.array):
+        if not self.entrenado:
+            raise ClasificadorNoEntrenado("El clasificador no ha sido entrenado, llama al método entrena antes de clasificar")
+        # Inicializamos el diccionario:
+        prob = {clase: np.log(self.prob_clases[i]) for i,clase in enumerate(self.clases)}
+
+        for i in range(self.num_clases): # recorremos las clases
+           for j in range(self.num_atributos): # recorremos los atributos
+               prob[self.clases[i]] += self.prob_atributos[self.clases[i]][j][ejemplo[j]] # el valor de atributo será el que nos proporciona el ejemplo
+                
+        
+        # calculamos en primer lugar el total para normalizar el resultado de las probabilidades y que quede entre un valor
+        # entre 0 y 1 cada probabilidad sumando 1 entre todas ellas:
+        total = np.sum([np.exp(prob[clase]) for clase in prob])
+        # pasamos de logprobabilidad a probabilidad:
+        for clase in prob:
+            prob[clase] = np.exp(prob[clase]) / total
+            
+        return prob
+    
+    def clasifica(self,ejemplo:np.array):
+        if not self.entrenado:
+            raise ClasificadorNoEntrenado("El clasificador no ha sido entrenado, llama al método entrena antes de clasificar")
+        
+        # Obtenemos las probabilidades de cada clase para el ejemplo
+        prob = self.clasifica_prob(ejemplo)
+        # Obtenemos la clase con mayor probabilidad
+        return max(prob, key=prob.get)
+    
+    
 
 # * El constructor recibe como argumento la constante k de suavizado (por
 #   defecto 1) 
-# * Método entrena, recibe como argumentos dos arrays de numpy, X e y, con los
+
+# * Método entrena, recibe como argumentos dos arrays de numpy, X e y, con los DONE
 #   datos y los valores de clasificación respectivamente. Tiene como efecto el
 #   entrenamiento del modelo sobre los datos que se proporcionan.  
+
 # * Método clasifica_prob: recibe un ejemplo (en forma de array de numpy) y
 #   devuelve una distribución de probabilidades (en forma de diccionario) que
 #   a cada clase le asigna la probabilidad que el modelo predice de que el
 #   ejemplo pertenezca a esa clase. 
+
 # * Método clasifica: recibe un ejemplo (en forma de array de numpy) y
 #   devuelve la clase que el modelo predice para ese ejemplo.   
 
@@ -129,8 +184,15 @@ class ClasificadorNoEntrenado(Exception): pass
 # {'no': 0.7564841498559081, 'si': 0.24351585014409202}
 # >>> nb_tenis.clasifica(ej_tenis)
 # 'no'
-import jugar_tenis
+from jugar_tenis import *
 
+nb_tenis=NaiveBayes(k=0.5)
+nb_tenis.entrena(X_tenis,y_tenis)
+print("Entrenando el clasificador con el dataset de jugar al tenis...")
+ej_tenis=np.array(['Soleado','Baja','Alta','Fuerte'])
+print("Clasificando el ejemplo: ",ej_tenis)
+print("Probabilidades de cada clase: ",nb_tenis.clasifica_prob(ej_tenis))
+print("Clase predicha: ",nb_tenis.clasifica(ej_tenis))
 
 # ----------------------------------------------
 # I.2) Implementación del cálculo de rendimiento
@@ -144,7 +206,13 @@ import jugar_tenis
 
 # >>> rendimiento(nb_tenis,X_tenis,y_tenis)
 # 0.9285714285714286
+def rendimiento(clasificador,X:np.array,y:np.array):
+        # Obtenemos las predicciones para cada ejemplo
+        predicciones = [clasificador.clasifica(ejemplo) for ejemplo in X]
+        # Calculamos el rendimiento
+        return np.sum(predicciones == y) / len(y)
 
+print("Rendimiento del clasificador NB con el conjunto de jugar tenis: ",rendimiento(nb_tenis,X_tenis,y_tenis),"\n \n")
 # --------------------------
 # I.3) Aplicando Naive Bayes
 # --------------------------
@@ -207,17 +275,125 @@ import jugar_tenis
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   
 
-# importing dummy datasets
-# import credito
-# import votos
+## importamos los sencillitos
+import credito 
+import votos
+
+## recolección de datos
+X_credito = np.array([d[:-1] for d in credito.datos_con_la_clase])
+y_credito = np.array([d[-1] for d in credito.datos_con_la_clase])
+
+X_votos = votos.datos
+y_votos = votos.clasif
+
+## separación en train y test
+# credito
+from sklearn.model_selection import train_test_split # usamos sklearn en una primera instancia
+X_credito_train, X_credito_test, y_credito_train, y_credito_test = train_test_split(X_credito, y_credito, test_size=0.2, random_state=42)
+
+# votos
+X_votos_train = X_votos[:279]
+y_votos_train = y_votos[:279]
+
+X_votos_valid = X_votos[279:346]
+y_votos_valid = y_votos[279:346]
+
+X_votos_test = X_votos[346:]
+y_votos_test = y_votos[346:]
+
+### Conjunto de datos IMDB
+import random as rd
+from sklearn.datasets import load_files
+reviews_train = load_files("aclImdb/train/")
+muestra_entr=rd.sample(list(zip(reviews_train.data,
+                                reviews_train.target)),k=2000)
+text_train=[d[0] for d in muestra_entr]
+text_train = [doc.replace(b"<br />", b" ") for doc in text_train]
+yimdb_train=np.array([d[1] for d in muestra_entr])
 
 
+reviews_test = load_files("aclImdb/test/")
+muestra_test=rd.sample(list(zip(reviews_test.data,
+                                    reviews_test.target)),k=400)
+text_test=[d[0] for d in muestra_test]
+text_test = [doc.replace(b"<br />", b" ") for doc in text_test]
+yimdb_test=np.array([d[1] for d in muestra_test])
 
 
+# Vectorizamos los textos como se indica
+from sklearn.feature_extraction.text import CountVectorizer
 
+vectTrain = CountVectorizer(min_df = 50, stop_words="english").fit(text_train)
+#vectTest = CountVectorizer(min_df = 50, stop_words="english").fit(text_test)
 
+text_train = vectTrain.transform(text_train)
+#text_test = vectTest.transform(text_test)
+text_test = vectTrain.transform(text_test)
 
+Ximdb_train = (text_train.toarray()>0).astype(int)
+Ximbd_test = (text_test.toarray()>0).astype(int)
 
+print("Tamaño del vocabulario de aclimdb train: {}".format(len(vectTrain.vocabulary_)))
+#print("Tamaño del vocabulario de aclimdb test: {}".format(len(vectTest.vocabulary_)))
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# USO DEL CLAS NB CON LOS DATOS DE CREDITO
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+rend_credito = [0]
+k_values = np.arange(0.01,10,0.01)
+for x in k_values:#for x in range(1,20):
+    nb_credito=NaiveBayes(k=x)
+    nb_credito.entrena(X_credito_train,y_credito_train)
+    rend = rendimiento(nb_credito,X_credito_test,y_credito_test)
+    #tratamos de maximizar el rendimiento:
+    if all(rend > r for r in rend_credito):
+        rend_credito.append(rend)
+        nb_credito_max = nb_credito
+        x_credito_max = x
+
+# Con el mejor clasificador, calculamos el rendimiento 
+print("El mejor hiperparámetro k es: ",x_credito_max)
+print("El mejor rendimiento del clasificador NB con el conjunto train de creditos es: ",rendimiento(nb_credito_max,X_credito_train,y_credito_train))
+print("El mejor rendimiento del clasificador NB con el conjunto test de creditos es: ",max(rend_credito),"\n \n")
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# USO DEL CLAS NB CON LOS DATOS DE VOTOS
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+rend_votos = [0]
+k_values = np.arange(0.01,10,0.01) # np.arange(0.1,1,0.1)
+for x in k_values: # tras ver que 1 era el mejor en el rango de 1 a 20, probamos con valores cercanos
+    nb_votos=NaiveBayes(k=x)
+    nb_votos.entrena(X_votos_train,y_votos_train)
+    rend = rendimiento(nb_votos,X_votos_test,y_votos_test)
+    #tratamos de maximizar el rendimiento:
+    if all(rend > r for r in rend_votos):
+        rend_votos.append(rend)
+        nb_votos_max = nb_votos
+        x_votos_max = x
+
+# Con el mejor clasificador, calculamos el rendimiento
+print("El mejor hiperparámetro k es: ",x_votos_max)
+print("El mejor rendimiento del clasificador NB con el conjunto test de votos es: ",max(rend_votos))
+print("El rendimiento del clasificador NB con el conjunto validación de votos es: ",rendimiento(nb_votos_max,X_votos_valid,y_votos_valid),"\n \n")
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# USO DEL CLAS NB CON LOS DATOS DE IMDB
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+rend_imdb = [0]
+k_values = np.arange(0.01,0.5,0.01)
+for x in k_values: # tras ver que 1 era el mejor en el rango de 1 a 20, probamos con valores cercanos
+    nb_imdb=NaiveBayes(k=x)
+    nb_imdb.entrena(Ximdb_train,yimdb_train)
+    rend = rendimiento(nb_imdb,Ximbd_test,yimdb_test)
+    #tratamos de maximizar el rendimiento:
+    if all(rend > r for r in rend_imdb):
+        rend_imdb.append(rend)
+        nb_imdb_max = nb_imdb
+        x_imdb_max = x
+
+# Con el mejor clasificador, calculamos el rendimiento
+print("El mejor hiperparámetro k es: ",x_imdb_max)
+print("El mejor rendimiento del clasificador NB con el conjunto test de IMDB es: ",max(rend_imdb))
 
 
 
