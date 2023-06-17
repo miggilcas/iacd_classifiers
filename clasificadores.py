@@ -340,7 +340,7 @@ print("Tamaño del vocabulario de aclimdb train: {}".format(len(vectTrain.vocabu
 # USO DEL CLAS NB CON LOS DATOS DE CREDITO
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 rend_credito = [0]
-k_values = np.arange(0.001,10,0.001)
+k_values = np.arange(0.01,10,0.01)
 for x in k_values:#for x in range(1,20):
     nb_credito=NaiveBayes(k=x)
     nb_credito.entrena(X_credito_train,y_credito_train)
@@ -353,6 +353,7 @@ for x in k_values:#for x in range(1,20):
 
 # Con el mejor clasificador, calculamos el rendimiento 
 print("El mejor hiperparámetro k es: ",x_credito_max)
+print("El mejor rendimiento del clasificador NB con el conjunto train de creditos es: ",rendimiento(nb_credito_max,X_credito_train,y_credito_train))
 print("El mejor rendimiento del clasificador NB con el conjunto test de creditos es: ",max(rend_credito),"\n \n")
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
