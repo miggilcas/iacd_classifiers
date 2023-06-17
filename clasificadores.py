@@ -620,6 +620,34 @@ opciones = [(rate, batch_tam, rate_decay, normalizacion, n_epoch)
             for normalizacion in normalizaciones
             for n_epoch in n_epochs]
 
+def evaluacion_hiperparametros(opciones, Xe, ye, Xv, yv):
+
+    print('Evaluando %d combinaciones hiperparámetros...' % len(opciones))
+
+    # Evaluamos el rendimiento de cada combinación de hiperparámetros
+    rendimiento_opt = []
+    lr_entrenados = []
+    for opt in opciones:
+
+        # Entrenamos un modelo para la combinación de hiperparámetros opt
+        lr = RegresionLogisticaMiniBatch(rate=opt[0], batch_tam=opt[1], rate_decay=opt[2], normalizacion=opt[3])
+        lr.entrena(Xe, ye, opt[4])
+
+        # Guardamos el rendimiento en la validación y el modelo entrenado
+        rendimiento_opt.append(rendimiento(lr, Xv, yv))
+        lr_entrenados.append(lr)
+
+    # Obtenemos el mejor rendimiento y la mejor combinación de hiperparámetros
+    mejor_rendimiento_index = np.argmax(rendimiento_opt)
+    mejor_opt = opciones[mejor_rendimiento_index]
+    mejor_lr = lr_entrenados[mejor_rendimiento_index]
+
+    print("Rendimiento en entrenamiento: ", rendimiento(mejor_lr, Xe, ye))
+    print("Rendimiento en validación: ", rendimiento(mejor_lr, Xv, yv))
+    print("Mejor combinación de hiperparámetros: ", mejor_opt)
+
+    return mejor_lr
+
 ################################
 ### Votos de congresistas US ###
 ################################
@@ -632,43 +660,63 @@ y_votos = votos.clasif
 Xe_votos, Xaux_votos, ye_votos, yaux_votos = train_test_split(X_votos, y_votos, test_size=0.5, random_state=41, stratify=y_votos)
 Xv_votos, Xt_votos, yv_votos, yt_votos = train_test_split(Xaux_votos, yaux_votos, test_size=0.6, random_state=41, stratify=yaux_votos)
 
-# Evaluamos el rendimiento de cada combinación de hiperparámetros
-rendimiento_votos_opciones = []
-lr_votos_entrenados = []
-for opt in opciones:
-    
-    # Entrenamos un modelo para la combinación de hiperparámetros opt
-    lr_votos = RegresionLogisticaMiniBatch(rate=opt[0], batch_tam=opt[1], rate_decay=opt[2], normalizacion=opt[3])
-    lr_votos.entrena(Xe_votos, ye_votos, opt[4])
-
-    # Guardamos el rendimiento en la validación y el modelo entrenado
-    rendimiento_votos_opciones.append(rendimiento(lr_votos, Xv_votos, yv_votos))
-    lr_votos_entrenados.append(lr_votos)
-
-# Obtenemos el mejor rendimiento y la mejor combinación de hiperparámetros
-mejor_rendimiento_votos_index = np.argmax(rendimiento_votos_opciones)
-mejor_opcion_votos = opciones[mejor_rendimiento_votos_index]
-mejor_lr_votos = lr_votos_entrenados[mejor_rendimiento_votos_index]
-
-# Monstramos el rendimiento obtenido y la combinación de hiperparámetros para los tres conjuntos
-print("Ajuste Hiperparámetros Logistic Regression. Conjunto de datos: Votos")
-print("Rendimiento en entrenamiento: ", rendimiento(mejor_lr_votos, Xe_votos, ye_votos))
-print("Rendimiento en validación: ", rendimiento(mejor_lr_votos, Xv_votos, yv_votos))
-print("Rendimiento en test: ", rendimiento(mejor_lr_votos, Xt_votos, yt_votos))
-print("Mejor combinación de hiperparámetros: ", mejor_opcion_votos)
+# DESCOMENTAR PARA EJECUTAR #
+# print("\nVotos de congresistas US")
+# # Llamamos a la función anterior para obtener el modelo con mejor rendimiento sobre el conjunto de validación
+# lr_votos = evaluacion_hiperparametros(opciones, Xe_votos, ye_votos, Xv_votos, yv_votos)
+# print("Rendimiento en test: ", rendimiento(lr_votos, Xt_votos, yt_votos))
+# # Guardamos los pesos como resultado del modelo entrenado
+# pesos_votos = lr_votos.w
+# np.savetxt("pesos_votos.txt", pesos_votos)
 
 # RESULTADOS
-# Rendimiento en entrenamiento:  0.9769585253456221
-# Rendimiento en validación:  0.9655172413793104
+# Rendimiento en entrenamiento:  0.9953917050691244
+# Rendimiento en validación:  0.9540229885057471
+# Mejor combinación de hiperparámetros:  (1.0, 32, True, True, 5000)
 # Rendimiento en test:  0.9312977099236641
-# Mejor combinación de hiperparámetros:  (1.0, 128, True, True, 10000)
 
 # Es decir, el modelo con mejor rendimiento para este conjunto de datos,
 # es el que tiene los siguientes hiperparámetros:
 # - Tasa de aprendizaje inicial de 1.0 con rate_decay
-# - Tamaño de batch: 128
+# - Tamaño de batch: 32
+# - Normalización: True
+# - Número de epochs: 5000
+
+######################
+### Cáncer de Mama ###
+######################
+
+# Imporatmos los datos y los dividimos sando train_test_split de Scikit Learn con estratificación
+# en una proporción 50-20-30 respectivamente
+from sklearn.datasets import load_breast_cancer
+cancer=load_breast_cancer()
+X_cancer,y_cancer=cancer.data,cancer.target
+Xe_cancer, Xaux_cancer, ye_cancer, yaux_cancer = train_test_split(X_cancer, y_cancer, test_size=0.5, random_state=41, stratify=y_cancer)
+Xv_cancer, Xt_cancer, yv_cancer, yt_cancer = train_test_split(Xaux_cancer, yaux_cancer, test_size=0.6, random_state=41, stratify=yaux_cancer)
+
+# Evaluamos el rendimiento de cada combinación de hiperparámetros
+print("\nCáncer de mama")
+lr_cancer = evaluacion_hiperparametros(opciones, Xe_cancer, ye_cancer, Xv_cancer, yv_cancer)
+print("Rendimiento en test: ", rendimiento(lr_cancer, Xt_cancer, yt_cancer))
+
+# RESULTADOS
+# Rendimiento en entrenamiento:  0.9823943661971831
+# Rendimiento en validación:  0.9824561403508771
+# Mejor combinación de hiperparámetros:  (0.01, 32, True, True, 10000)
+# Rendimiento en test:  0.9473684210526315
+
+# Es decir, el modelo con mejor rendimiento para este conjunto de datos,
+# es el que tiene los siguientes hiperparámetros:
+# - Tasa de aprendizaje inicial de 0.01 con rate_decay
+# - Tamaño de batch: 32
 # - Normalización: True
 # - Número de epochs: 10000
+
+######################
+### Críticas IMDB ###
+######################
+
+
 
 
 
